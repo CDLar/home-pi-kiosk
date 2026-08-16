@@ -2,7 +2,8 @@
 # ============================================================
 # Raspberry Pi Kiosk Dashboard — Setup & Auto-Update
 #
-# Run this once via SSH on the Pi:
+# Run this once via SSH on the Pi (Raspberry Pi OS Lite, no
+# desktop environment required):
 #   chmod +x setup-kiosk.sh && ./setup-kiosk.sh
 #
 # EDIT THESE FIRST:
@@ -11,7 +12,7 @@ set -euo pipefail
 
 REPO_URL="https://github.com/CDLar/home-pi-kiosk.git"
 BRANCH="main"
-DASHBOARD_FILE="kiosk.html"         # path to the file INSIDE the repo
+DASHBOARD_FILE="index.html"         # entry point INSIDE the repo
 INSTALL_DIR="$HOME/dashboard"
 
 # ============================================================
@@ -90,7 +91,7 @@ chmod +x "$UPDATE_SCRIPT"
 
 echo ""
 echo "==> Setup complete."
-echo "    - Dashboard file: $DASHBOARD_PATH"
+echo "    - Dashboard entry point: $DASHBOARD_PATH"
 echo "    - Reboot to launch automatically: sudo reboot"
 echo "    - Or test right now without rebooting: startx"
 echo "    - After pushing changes to GitHub, SSH in and run:"
