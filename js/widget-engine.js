@@ -9,6 +9,7 @@ window.KioskEngine = (function(){
   "use strict";
   const CONFIG = window.CONFIG;
   const cache = {};
+  const errors = {}; // widget.id -> reason, present only while that widget is failing
 
   function diagnoseError(err){
     const msg = (err && err.message) ? err.message : String(err);
@@ -29,18 +30,29 @@ window.KioskEngine = (function(){
     return msg.toUpperCase();
   }
 
+  // most widgets render inside the standard bordered/titled card; a
+  // widget can set `bare: true` to render as plain content directly on
+  // the page background instead (no border, no title bar, no status
+  // dot/updated stamp) — used for widgets that don't need their own
+  // "container" to read clearly, e.g. weather sharing a row with air quality.
+  // A carded widget can also set `showUpdated: false` to hide just the
+  // last-updated timestamp while keeping the rest of the title bar.
   function buildCardDOM(widget){
     const card = document.createElement("section");
-    card.className = "card";
+    card.className = "card" + (widget.bare ? " card-bare" : "");
     card.dataset.widget = widget.id;
     if (widget.span) card.dataset.span = widget.span;
 
-    card.innerHTML = `
+    const updatedHTML = widget.showUpdated === false
+      ? "" : `<span class="updated" data-updated>--:--:--</span>`;
+
+    card.innerHTML = widget.bare
+      ? `<div class="card-body" data-body><span class="placeholder">LOADING&hellip;</span></div>`
+      : `
       <div class="card-titlebar">
-        <span class="prompt">&gt;</span>
         <span class="title">${widget.title}</span>
         <span class="spacer"></span>
-        <span class="updated" data-updated>--:--:--</span>
+        ${updatedHTML}
         <span class="status-dot" data-status></span>
       </div>
       <div class="card-body" data-body>
@@ -56,14 +68,31 @@ window.KioskEngine = (function(){
   }
 
   function setStatus(refs, state){
+    if (!refs.status) return;
     refs.status.className = "status-dot" + (state === "online" ? " online" : state === "stale" ? " stale" : "");
   }
 
   function stampUpdated(refs){
+    if (!refs.updated) return;
     const now = new Date();
     const opts = { timeZone: CONFIG.timezone, hour12:false,
                     hour:"2-digit", minute:"2-digit", second:"2-digit" };
     refs.updated.textContent = new Intl.DateTimeFormat("en-GB", opts).format(now);
+  }
+
+  // reflects CURRENT health, not just "the last error anyone ever saw" —
+  // recomputed after every tick so a widget recovering clears its entry
+  // and the bar goes back to "SYS OK" once nothing is failing
+  function updateStatusBar(){
+    const failingIds = Object.keys(errors);
+    const el = document.getElementById("status-left");
+    if (failingIds.length === 0){
+      el.textContent = "SYS OK";
+    } else {
+      const id = failingIds[0];
+      const suffix = failingIds.length > 1 ? " (+" + (failingIds.length - 1) + " more)" : "";
+      el.textContent = "ERR: " + id.toUpperCase() + " — " + errors[id] + suffix;
+    }
   }
 
   async function tick(widget, refs){
@@ -73,10 +102,11 @@ window.KioskEngine = (function(){
       widget.render(refs.body, data);
       setStatus(refs, "online");
       stampUpdated(refs);
+      delete errors[widget.id];
     }catch(err){
       console.error("[" + widget.id + "]", err);
       const reason = diagnoseError(err);
-      document.getElementById("status-left").textContent = "ERR: " + widget.id.toUpperCase() + " — " + reason;
+      errors[widget.id] = reason;
       if (cache[widget.id]){
         widget.render(refs.body, cache[widget.id]);
       } else {
@@ -86,6 +116,7 @@ window.KioskEngine = (function(){
       }
       setStatus(refs, "stale");
     }finally{
+      updateStatusBar();
       setTimeout(() => tick(widget, refs), widget.refreshMs || CONFIG.refreshMs);
     }
   }

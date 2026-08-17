@@ -11,8 +11,8 @@ window.CONFIG = {
   clockTickMs: 1000,
 
   transit: [
-    { agency: "ttc", route: "503", stopId: "2774", label: "KINGSTON RD AT DIXON AVE", direction: "E" },
     { agency: "ttc", route: "503", stopId: "2775", label: "KINGSTON RD AT DUNDAS ST E", direction: "W" },
+    { agency: "ttc", route: "503", stopId: "2774", label: "KINGSTON RD AT DIXON AVE", direction: "E" },
     { agency: "ttc", route: "501", stopId: "6806", label: "QUEEN ST E AT KINGSTON RD", direction: "W" },
     { agency: "ttc", route: "501", stopId: "11845", label: "QUEEN ST E AT KINGSTON RD", direction: "E" },
     { agency: "ttc", route: "22", stopId: "11181", label: "EASTERN AVE AT QUEEN ST E", direction: "N" }

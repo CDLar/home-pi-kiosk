@@ -5,206 +5,451 @@
    section rather than overloading an existing one.
    ============================================================ */
 
-:root{
-  --bg:            #0a0806;
-  --bg-panel:      #14100a;
-  --bg-panel-2:    #1b150d;
-  --border:        #3d2f14;
+:root {
+  --bg: #12110f;
+  --bg-panel: #171611;
+  --border: #3d2f14;
   --border-bright: #6b4f18;
-  --amber:         #ffb000;
-  --amber-bright:  #ffd166;
-  --amber-dim:     #9c6d00;
-  --text:          #e8dcc4;
-  --text-dim:      #8a7c60;
-  --red:           #ff4433;
+  --amber: #ffb000;
+  --amber-bright: #ffd166;
+  --amber-dim: #9c6d00;
+  --text: #e8dcc4;
+  --text-dim: #8a7c60;
+  --red: #ff4433;
   --font: ui-monospace, "Cascadia Code", "JetBrains Mono", "Segoe UI Mono",
-          Consolas, "Liberation Mono", Menlo, monospace;
+    Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-*{ box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body{
-  margin:0; padding:0; width:100%; height:100%;
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   overflow: hidden;
-  -webkit-user-select: none; user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-body{
-  display:flex; flex-direction:column;
-  padding: 18px 22px 14px;
+body {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 20px 10px;
   position: relative;
 }
 
-/* subtle CRT scanline + vignette overlay, purely atmospheric */
-.crt-overlay{
-  position:fixed; inset:0; pointer-events:none; z-index:50;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(0,0,0,0.16) 0px,
-      rgba(0,0,0,0.16) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-  mix-blend-mode: multiply;
-  opacity: 0.35;
-}
-.crt-overlay::after{
-  content:"";
-  position:absolute; inset:0;
-  box-shadow: inset 0 0 140px rgba(0,0,0,0.75);
-}
-
-/* ---------- top bar ---------- */
-.topbar{
-  display:flex; align-items:baseline; justify-content:space-between;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 12px; margin-bottom: 18px;
-  flex-shrink:0;
-}
-.brand{
-  font-size: 15px; letter-spacing: 2px; color: var(--amber-dim);
-  text-transform: uppercase;
-}
-.brand .city{ color: var(--amber-bright); text-shadow: 0 0 8px rgba(255,209,102,0.5); }
-
-.clock-wrap{ text-align:right; }
-.clock{
-  font-size: 34px; font-weight: 600; letter-spacing: 2px;
-  color: var(--amber-bright);
-  text-shadow: 0 0 10px rgba(255,176,0,0.45);
-}
-@keyframes blink{ 50%{ opacity:0; } }
-.date{
-  font-size: 12px; letter-spacing: 3px; color: var(--text-dim);
-  text-transform: uppercase; margin-top: 2px;
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 /* ---------- widget grid ---------- */
-.grid{
+/* fixed 3 columns, not auto-fill — the display is a single known
+   1024x600 size, not a responsive range, so the grid is defined to
+   match it exactly. 3 explicit rows: weather (row 1, col 1) stacks
+   over calendar (row 2, col 1); the hourly forecast fills the
+   remaining 2x1 area beside them (cols 2-3, spanning both rows); the
+   transit board gets everything left over (1fr) across the full
+   width. Each of these widgets is positioned explicitly by
+   [data-widget] below rather than relying on auto-flow order. */
+.grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  grid-auto-rows: minmax(180px, auto);
-  gap: 16px;
-  align-content:start;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto 1fr;
+  gap: 12px;
+  align-content: start;
   overflow: hidden;
 }
 
-.card{
-  background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  display:flex; flex-direction:column;
-  overflow:hidden;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
-}
-.card[data-span="2"]{ grid-column: span 2; }
-.card[data-span="3"]{ grid-column: span 3; }
+.card[data-widget="calendar"] { grid-column: 1; grid-row: 1; }
+.card[data-widget="weather"] { grid-column: 1; grid-row: 2; }
+.card[data-widget="weather-hourly"] { grid-column: 2 / 4; grid-row: 1 / 3; }
+.card[data-widget="transit-list"] { grid-column: 1 / 4; grid-row: 3; }
 
-.card-titlebar{
-  display:flex; align-items:center; gap:8px;
-  padding: 8px 14px;
-  background: rgba(255,176,0,0.05);
-  border-bottom: 1px solid var(--border);
-  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+.card {
+  background: var(--bg-panel);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* no border/background/title bar — content sits directly on the page
+   background */
+.card.card-bare {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.card-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 0;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: var(--amber-dim);
 }
-.card-titlebar .prompt{ color: var(--amber); }
-.card-titlebar .title{
-  color: var(--amber-bright); flex-shrink:1; min-width:0;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+
+.card-titlebar .title {
+  color: var(--amber-bright);
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.card-titlebar .spacer{ flex:1; }
-.status-dot{
-  width:7px; height:7px; border-radius:50%;
+
+.card-titlebar .spacer {
+  flex: 1;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: var(--text-dim);
   box-shadow: 0 0 6px currentColor;
-  flex-shrink:0;
+  flex-shrink: 0;
 }
-.status-dot.online{ background: var(--amber-bright); color: var(--amber-bright); }
-.status-dot.stale{ background: var(--red); color: var(--red); animation: blink 1.4s steps(1) infinite; }
-.updated{ font-size: 10px; color: var(--text-dim); white-space:nowrap; }
 
-.card-body{
-  flex:1; padding: 16px 18px;
-  display:flex; flex-direction:column; justify-content:center;
-  overflow:hidden;
+.status-dot.online {
+  background: var(--amber-bright);
+  color: var(--amber-bright);
+}
+
+.status-dot.stale {
+  background: var(--red);
+  color: var(--red);
+  animation: blink 1.4s steps(1) infinite;
+}
+
+.updated {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.card-body {
+  padding: 8px 18px;
+  overflow: hidden;
+}
+
+/* the transit board's card-body needs to actually consume the extra
+   height the outer grid now hands its row (1fr), and hand that height
+   on down to .tl-board so its rows can grow to fill it */
+.card[data-widget="transit-list"] .card-body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* same idea for the hourly forecast card, which now spans 2 rows —
+   .wx-hourly's height:100% needs a definite height to resolve against */
+.card[data-widget="weather-hourly"] .card-body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ---------- weather widget internals ---------- */
-.wx-main{ display:flex; align-items:center; gap:22px; }
-.wx-temp{
-  font-size: 68px; font-weight: 700; color: var(--amber-bright);
-  text-shadow: 0 0 14px rgba(255,176,0,0.4);
-  line-height:1;
+/* stacked (not side-by-side) — this card is now only 1 column wide,
+   sharing that column with the calendar below it */
+.wx-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.wx-temp sup{ font-size: 26px; color: var(--amber-dim); }
-.wx-info{ display:flex; flex-direction:column; gap:4px; }
-.wx-cond{ font-size: 16px; letter-spacing:1px; text-transform:uppercase; color: var(--text); }
-.wx-sub{ font-size: 12px; color: var(--text-dim); letter-spacing:0.5px; }
-.wx-sub b{ color: var(--amber); font-weight:600; }
 
-.wx-hourly{
-  display:flex; gap:14px; margin-top:22px; padding-top:16px;
-  border-top: 1px dashed var(--border);
+.wx-temp {
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--amber-bright);
+  line-height: 1;
 }
-.wx-hour{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
-.wx-hour .h-label{ font-size:10px; color: var(--text-dim); letter-spacing:1px; }
-.wx-hour .h-bar-track{
-  width:10px; height:60px; background: rgba(255,176,0,0.08);
-  border:1px solid var(--border); border-radius:2px;
-  display:flex; align-items:flex-end; overflow:hidden;
-}
-.wx-hour .h-bar{ width:100%; background: linear-gradient(180deg, var(--amber-bright), var(--amber-dim)); }
-.wx-hour .h-temp{ font-size:11px; color: var(--amber); font-weight:600; }
 
-/* ---------- air quality widget internals ---------- */
-.aq-main{ display:flex; align-items:center; gap:22px; }
-.aq-value{
-  font-size: 60px; font-weight: 700; line-height:1;
-  text-shadow: 0 0 14px rgba(255,176,0,0.35);
+.wx-temp sup {
+  font-size: 20px;
+  color: var(--amber-dim);
 }
-.aq-info{ display:flex; flex-direction:column; gap:4px; }
-.aq-cond{ font-size: 14px; letter-spacing:1px; text-transform:uppercase; }
-.aq-sub{ font-size: 12px; color: var(--text-dim); letter-spacing:0.5px; }
-.aq-sub b{ color: var(--amber); font-weight:600; }
 
-/* ---------- transit widget internals ---------- */
-.tr-dest{
-  font-size:11px; color: var(--text-dim); letter-spacing:0.5px;
-  text-transform:uppercase; margin-bottom:10px;
+.wx-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
-.tr-alert{
-  font-size:11px; color: var(--red); letter-spacing:0.5px;
-  padding:6px 8px; margin-bottom:10px;
-  border:1px solid var(--red); border-radius:2px;
-  background: rgba(255,68,51,0.08);
-}
-.tr-list{ display:flex; flex-direction:column; gap:10px; }
-.tr-arrival{
-  display:flex; align-items:baseline; gap:10px;
-  padding-bottom:8px; border-bottom:1px dashed var(--border);
-}
-.tr-arrival:last-child{ border-bottom:none; padding-bottom:0; }
-.tr-mins{
-  font-size:28px; font-weight:700; color:var(--amber-bright);
-  text-shadow: 0 0 10px rgba(255,176,0,0.4);
-  min-width:44px;
-}
-.tr-unit{ font-size:11px; letter-spacing:1px; color:var(--text-dim); text-transform:uppercase; }
 
-.placeholder{ color: var(--text-dim); font-size: 13px; letter-spacing:1px; }
-.placeholder.err{ color: var(--red); }
+.wx-cond {
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.wx-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.wx-sub b {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+/* ---------- hourly forecast widget internals ---------- */
+/* one rounded "pill" per hour — time, a condition icon, temperature —
+   instead of a bar chart. Its own (wider, taller) card now, so there's
+   plenty of room for these to breathe. */
+.wx-hourly {
+  display: flex;
+  gap: 14px;
+  height: 100%;
+}
+
+.wx-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 8px;
+  background: var(--bg-panel);
+  border-radius: 999px;
+}
+
+.wx-pill-time {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.wx-pill-icon {
+  width: 34px;
+  height: 34px;
+  color: var(--amber-bright);
+}
+
+.wx-pill-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.wx-pill-temp {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--amber-bright);
+}
+
+/* ---------- calendar/date panel ---------- */
+/* spine (vertical weekday) + stamp block (day number) on the left,
+   time split off to its own space on the right */
+.cal-panel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cal-spine {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: var(--amber-dim);
+  border-right: 1px solid var(--border);
+  padding-right: 14px;
+  text-transform: uppercase;
+}
+
+.cal-date-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-month {
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.cal-stampblock {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 4px;
+  background: var(--amber-bright);
+  border-radius: 4px;
+  padding: 2px 14px;
+}
+
+.cal-daynum {
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--bg);
+  line-height: 1;
+}
+
+.cal-time-block {
+  margin-left: auto;
+  text-align: right;
+}
+
+.cal-time {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--amber-bright);
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+/* ---------- transit departure board ---------- */
+/* no card/background, no divider lines — just breathing room between
+   entries. A 2-column grid of taller entries (route+direction, then
+   destination+time), sitting directly on the page background same as
+   the weather section, like an airport/station board. */
+.tl-board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  row-gap: 6px;
+  column-gap: 40px;
+  border-top: 1px solid var(--border);
+}
+
+/* route number beside a block-stacked direction+destination unit — dest
+   is a plain block under direction, landing directly under "WESTBOUND"
+   rather than under the route number. ETAs get their own column, sized
+   to the full height of the entry so they're the biggest thing here. */
+.tl-entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: stretch;
+  column-gap: 20px;
+  padding: 10px 26px;
+}
+
+.tl-entry:nth-child(odd) {
+  padding-left: 0;
+}
+
+.tl-entry:nth-child(even) {
+  padding-right: 0;
+}
+
+.tl-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 10px;
+}
+
+.tl-route {
+  font-size: 23px;
+  font-weight: 800;
+  color: var(--amber-bright);
+  line-height: 1;
+}
+
+.tl-dir-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.tl-dir {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--amber-dim);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.tl-dest {
+  line-height: 1;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+/* the ETAs are the whole point of this board — the number itself scales
+   to fill the entry's actual height via container query units, instead
+   of a fixed font-size that leaves space unused when a row grows */
+.tl-eta-row {
+  container-type: size;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.tl-eta-sep {
+  font-size: 14px;
+  color: var(--border-bright);
+}
+
+.tl-eta-num {
+  font-size: 95cqh;
+  font-weight: 800;
+  color: var(--amber-bright);
+  line-height: 1;
+}
+
+.tl-eta-num small {
+  font-size: 0.3em;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-left: 0.08em;
+}
+
+/* a bus arriving within URGENT_THRESHOLD_MINS gets a soft glow — the one
+   deliberate accent on an otherwise flat/glow-free theme */
+.tl-eta-num.tl-urgent {
+  text-shadow: 0 0 22px rgba(255, 176, 0, 0.55);
+}
+
+.tl-none {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.placeholder {
+  color: var(--text-dim);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.placeholder.err {
+  color: var(--red);
+}
 
 /* ---------- status bar ---------- */
-.statusbar{
-  flex-shrink:0; margin-top: 14px; padding-top: 8px;
+.statusbar {
+  flex-shrink: 0;
+  margin-top: 10px;
+  padding-top: 6px;
   border-top: 1px solid var(--border);
-  font-size: 10px; letter-spacing: 2px; color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
   text-transform: uppercase;
-  display:flex; justify-content:space-between;
+  display: flex;
+  justify-content: space-between;
 }

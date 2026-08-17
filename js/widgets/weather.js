@@ -16,11 +16,13 @@
   };
   const wmoLabel = c => WMO[c] || "UNKNOWN";
 
+  // current conditions only — the hourly forecast is its own widget
+  // (js/widgets/weather-hourly.js) now that they no longer share a card
   window.KIOSK_WIDGETS = window.KIOSK_WIDGETS || [];
   window.KIOSK_WIDGETS.push({
     id: "weather",
     title: "WEATHER",
-    span: 2,
+    bare: true,
     refreshMs: CONFIG.refreshMs,
 
     async fetch(){
@@ -28,7 +30,6 @@
         + "?latitude=" + CONFIG.latitude
         + "&longitude=" + CONFIG.longitude
         + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code"
-        + "&hourly=temperature_2m,weather_code"
         + "&timezone=" + encodeURIComponent(CONFIG.timezone)
         + "&forecast_days=1";
       const res = await fetch(url);
@@ -38,44 +39,16 @@
 
     render(el, data){
       const cur = data.current;
-      const hourly = data.hourly;
-
-      // find next 5 hours starting from current hour
-      const nowIso = cur.time;
-      let startIdx = hourly.time.indexOf(nowIso);
-      if (startIdx === -1) startIdx = 0;
-      const hrs = [];
-      for (let i = startIdx; i < Math.min(startIdx + 5, hourly.time.length); i++){
-        hrs.push({ time: hourly.time[i], temp: hourly.temperature_2m[i], code: hourly.weather_code[i] });
-      }
-      const temps = hrs.map(h => h.temp);
-      const minT = Math.min(...temps, cur.temperature_2m);
-      const maxT = Math.max(...temps, cur.temperature_2m);
-      const range = Math.max(maxT - minT, 1);
-
-      const hourlyHTML = hrs.map(h => {
-        const hourLabel = new Date(h.time).toLocaleTimeString("en-US", {
-          hour:"numeric", hour12:true, timeZone: CONFIG.timezone
-        }).replace(" ", "").toUpperCase();
-        const pct = Math.round(((h.temp - minT) / range) * 80) + 15; // 15-95%
-        return `
-          <div class="wx-hour">
-            <span class="h-temp">${Math.round(h.temp)}°</span>
-            <div class="h-bar-track"><div class="h-bar" style="height:${pct}%"></div></div>
-            <span class="h-label">${hourLabel}</span>
-          </div>`;
-      }).join("");
-
       el.innerHTML = `
         <div class="wx-main">
           <div class="wx-temp">${Math.round(cur.temperature_2m)}<sup>°C</sup></div>
           <div class="wx-info">
             <div class="wx-cond">${wmoLabel(cur.weather_code)}</div>
             <div class="wx-sub">FEELS LIKE <b>${Math.round(cur.apparent_temperature)}°C</b></div>
-            <div class="wx-sub">HUMIDITY <b>${Math.round(cur.relative_humidity_2m)}%</b> &nbsp;WIND <b>${Math.round(cur.wind_speed_10m)} KM/H</b></div>
+            <div class="wx-sub">HUMIDITY <b>${Math.round(cur.relative_humidity_2m)}%</b></div>
+            <div class="wx-sub">WIND <b>${Math.round(cur.wind_speed_10m)} KM/H</b></div>
           </div>
         </div>
-        <div class="wx-hourly">${hourlyHTML}</div>
       `;
     }
   });
