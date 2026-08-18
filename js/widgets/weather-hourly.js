@@ -21,6 +21,12 @@
       <path d="M9 18h9a3.5 3.5 0 0 0 .4-6.98A4.9 4.9 0 0 0 9.3 9.6 4 4 0 0 0 9 18z" fill="currentColor" opacity="0.9"/>
     </svg>`;
   }
+  function moonSVG(){
+    // classic crescent — a circle occluded by an offset circle
+    return `<svg viewBox="0 0 24 24" fill="none">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/>
+    </svg>`;
+  }
   function cloudSVG(extra){
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
       <path d="${CLOUD_PATH}" fill="currentColor" stroke="none"/>
@@ -44,9 +50,12 @@
     return cloudSVG('<path d="M12.5 18.2 10 22.5h2.4l-1 3" fill="none"/>');
   }
 
-  function iconFor(code){
-    if (code === 0) return sunSVG();
-    if (code === 1 || code === 2) return partlyCloudySVG();
+  // WMO codes alone don't distinguish day/night — code 0 is just "clear
+  // sky," at 2am or 2pm — so clear/partly-clear icons also need
+  // Open-Meteo's separate is_day flag, or they'd show a sun at midnight
+  function iconFor(code, isDay){
+    if (code === 0) return isDay ? sunSVG() : moonSVG();
+    if (code === 1 || code === 2) return isDay ? partlyCloudySVG() : moonSVG();
     if (code === 45 || code === 48) return fogSVG();
     if ([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)) return rainSVG();
     if ([71,73,75,77,85,86].includes(code)) return snowSVG();
@@ -68,9 +77,9 @@
         + "?latitude=" + CONFIG.latitude
         + "&longitude=" + CONFIG.longitude
         + "&current=temperature_2m"
-        + "&hourly=temperature_2m,weather_code"
+        + "&hourly=temperature_2m,weather_code,is_day"
         + "&timezone=" + encodeURIComponent(CONFIG.timezone)
-        + "&forecast_days=1";
+        + "&forecast_days=2";
       const res = await fetch(url);
       if (!res.ok) throw new Error("open-meteo HTTP " + res.status);
       return res.json();
@@ -80,13 +89,20 @@
       const cur = data.current;
       const hourly = data.hourly;
 
-      // find next hours starting from current hour
+      // start at the hour *after* the current one — "next 6 hours beyond
+      // now," not the current hour itself. Open-Meteo's ISO timestamps
+      // (no offset, all in CONFIG.timezone) sort lexicographically same
+      // as chronologically, so a plain string compare finds it without
+      // needing Date parsing/timezone handling.
       const nowIso = cur.time;
-      let startIdx = hourly.time.indexOf(nowIso);
+      let startIdx = hourly.time.findIndex(t => t > nowIso);
       if (startIdx === -1) startIdx = 0;
       const hrs = [];
-      for (let i = startIdx; i < Math.min(startIdx + 8, hourly.time.length); i++){
-        hrs.push({ time: hourly.time[i], temp: hourly.temperature_2m[i], code: hourly.weather_code[i] });
+      for (let i = startIdx; i < Math.min(startIdx + 6, hourly.time.length); i++){
+        hrs.push({
+          time: hourly.time[i], temp: hourly.temperature_2m[i],
+          code: hourly.weather_code[i], isDay: hourly.is_day[i] === 1
+        });
       }
 
       const pillsHTML = hrs.map(h => {
@@ -96,7 +112,7 @@
         return `
           <div class="wx-pill">
             <span class="wx-pill-time">${hourLabel}</span>
-            <span class="wx-pill-icon">${iconFor(h.code)}</span>
+            <span class="wx-pill-icon">${iconFor(h.code, h.isDay)}</span>
             <span class="wx-pill-temp">${Math.round(h.temp)}&deg;</span>
           </div>`;
       }).join("");
