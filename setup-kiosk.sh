@@ -31,7 +31,18 @@ cmd_install() {
   echo "==> Installing packages..."
   sudo apt update
   sudo apt install -y --no-install-recommends \
-    xserver-xorg xinit openbox chromium-browser unclutter git
+    xserver-xorg xinit openbox chromium unclutter git
+
+  # The actual binary name varies by OS image — some ship it as
+  # `chromium-browser`, current Raspberry Pi OS (trixie-based) only
+  # provides `chromium`. Detect it once here instead of hardcoding
+  # one name, so this doesn't silently break again on a future image.
+  CHROMIUM_BIN="$(command -v chromium-browser || command -v chromium || true)"
+  if [ -z "$CHROMIUM_BIN" ]; then
+    echo "ERROR: no chromium/chromium-browser binary found after install." >&2
+    exit 1
+  fi
+  echo "    Using Chromium binary: $CHROMIUM_BIN"
 
   echo "==> Fetching dashboard repo..."
   if [ -d "$INSTALL_DIR/.git" ]; then
@@ -51,7 +62,7 @@ unclutter -idle 0.5 -root &
 openbox-session &
 
 while true; do
-  chromium-browser --kiosk --incognito --noerrdialogs --disable-infobars \\
+  $CHROMIUM_BIN --kiosk --incognito --noerrdialogs --disable-infobars \\
     --disable-translate --disable-features=TranslateUI \\
     --disable-sync --disable-default-apps --disable-component-update \\
     --disable-dev-shm-usage \\
@@ -89,7 +100,7 @@ cmd_update() {
   AFTER=$(git rev-parse HEAD)
   if [ "$BEFORE" != "$AFTER" ]; then
     echo "Updated: $BEFORE -> $AFTER. Reloading kiosk..."
-    pkill chromium-browser 2>/dev/null || pkill chromium 2>/dev/null || true
+    pkill chromium 2>/dev/null || pkill chromium-browser 2>/dev/null || true
   else
     echo "Already up to date ($AFTER)."
   fi
