@@ -81,6 +81,14 @@ EOF
     echo 'if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then startx; fi' >> "$HOME/.bash_profile"
   fi
 
+  # xset in ~/.xinitrc only disables X's own screensaver/DPMS — the kernel
+  # blanks the framebuffer underneath X on its own timer regardless.
+  echo "==> Disabling kernel console blanking..."
+  CMDLINE_FILE="/boot/firmware/cmdline.txt"
+  if [ -f "$CMDLINE_FILE" ] && ! grep -q 'consoleblank=0' "$CMDLINE_FILE"; then
+    sudo sed -i 's/$/ consoleblank=0/' "$CMDLINE_FILE"
+  fi
+
   echo ""
   echo "==> Install complete."
   echo "    Reboot to launch the kiosk: sudo reboot"
