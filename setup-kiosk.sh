@@ -31,7 +31,7 @@ cmd_install() {
   echo "==> Installing packages..."
   sudo apt update
   sudo apt install -y --no-install-recommends \
-    xserver-xorg xinit openbox chromium unclutter git
+    xserver-xorg xinit x11-xserver-utils openbox chromium unclutter git
 
   # The actual binary name varies by OS image — some ship it as
   # `chromium-browser`, current Raspberry Pi OS (trixie-based) only
