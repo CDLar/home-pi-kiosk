@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 # ============================================================
-# Raspberry Pi Kiosk Dashboard — Setup & Auto-Update
+# Raspberry Pi Kiosk Dashboard — Manual Setup
 #
-# Run this once via SSH on the Pi (Raspberry Pi OS Lite, no
-# desktop environment required):
-#   chmod +x setup-kiosk.sh && ./setup-kiosk.sh
+# Nothing in this script runs automatically. It does not touch
+# autologin, boot behavior, cron, or systemd — the kiosk display
+# only ever starts when YOU run `./setup-kiosk.sh start` over SSH,
+# and only updates when YOU run `./setup-kiosk.sh update`.
+#
+# Usage (SSH into the Pi, then):
+#   chmod +x setup-kiosk.sh
+#   ./setup-kiosk.sh install   # one-time: installs packages, clones repo, writes ~/.xinitrc
+#   ./setup-kiosk.sh update    # pulls latest dashboard changes from GitHub
+#   ./setup-kiosk.sh start     # launches X + Chromium kiosk (detached, survives SSH disconnect)
+#   ./setup-kiosk.sh stop      # kills the kiosk (X + Chromium)
 #
 # EDIT THESE FIRST:
 # ============================================================
@@ -14,34 +22,30 @@ REPO_URL="https://github.com/CDLar/home-pi-kiosk.git"
 BRANCH="main"
 DASHBOARD_FILE="index.html"         # entry point INSIDE the repo
 INSTALL_DIR="$HOME/dashboard"
-
-# ============================================================
-# 1. Install the minimal kiosk stack (no desktop environment needed)
-# ============================================================
-echo "==> Installing packages..."
-sudo apt update
-sudo apt install -y --no-install-recommends \
-  xserver-xorg xinit openbox chromium-browser unclutter git
-
-# ============================================================
-# 2. Clone (or update) the dashboard repo
-# ============================================================
-echo "==> Fetching dashboard repo..."
-if [ -d "$INSTALL_DIR/.git" ]; then
-  git -C "$INSTALL_DIR" pull
-else
-  git clone --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
-fi
-
 DASHBOARD_PATH="$INSTALL_DIR/$DASHBOARD_FILE"
+KIOSK_LOG="$HOME/kiosk.log"
 
 # ============================================================
-# 3. Kiosk launcher — loops so a crash or a forced-quit (used by the
-#    auto-updater below) just reopens the browser instead of leaving
-#    a black screen
+# install — packages, repo clone, ~/.xinitrc. Safe to re-run.
+# Does NOT touch autologin/boot_behaviour and does NOT start anything.
 # ============================================================
-echo "==> Writing ~/.xinitrc..."
-cat > "$HOME/.xinitrc" <<EOF
+cmd_install() {
+  echo "==> Installing packages..."
+  sudo apt update
+  sudo apt install -y --no-install-recommends \
+    xserver-xorg xinit openbox chromium-browser unclutter git
+
+  echo "==> Fetching dashboard repo..."
+  if [ -d "$INSTALL_DIR/.git" ]; then
+    echo "    Already cloned at $INSTALL_DIR — use '$0 update' to pull changes."
+  else
+    git clone --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+  fi
+
+  echo "==> Writing ~/.xinitrc..."
+  # Chromium flags are tuned for the Pi Zero 2 W's 512MB RAM — see README
+  # "Pre-setup" section for the reasoning behind each one.
+  cat > "$HOME/.xinitrc" <<EOF
 xset -dpms
 xset s off
 xset s noblank
@@ -50,49 +54,81 @@ openbox-session &
 
 while true; do
   chromium-browser --kiosk --incognito --noerrdialogs --disable-infobars \\
-    --disable-translate --disk-cache-dir=/dev/null \\
+    --disable-translate --disable-features=TranslateUI \\
+    --disable-sync --disable-default-apps --disable-component-update \\
+    --disable-software-rasterizer --disable-dev-shm-usage \\
+    --disk-cache-dir=/dev/null --disable-notifications \\
+    --no-first-run --password-store=basic \\
+    --js-flags="--max-old-space-size=128" \\
     "file://$DASHBOARD_PATH"
   sleep 2
 done
 EOF
 
-# ============================================================
-# 4. Autologin on tty1 + auto-start X on login
-# ============================================================
-echo "==> Enabling console autologin..."
-sudo raspi-config nonint do_boot_behaviour B2
-
-if ! grep -qxF 'if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then startx; fi' "$HOME/.bash_profile" 2>/dev/null; then
-  echo 'if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then startx; fi' >> "$HOME/.bash_profile"
-fi
+  echo ""
+  echo "==> Install complete. Nothing auto-starts."
+  echo "    Run '$0 start' whenever you want the kiosk on screen."
+}
 
 # ============================================================
-# 5. Manual update helper — run this by hand over SSH any time
-#    you've pushed changes to GitHub. It pulls the latest commit
-#    and kills chromium so the .xinitrc loop reopens it fresh.
+# update — pull latest dashboard changes. Run by hand, as often
+# (or rarely) as you like.
 # ============================================================
-echo "==> Installing manual update helper (~/dashboard-update.sh)..."
-UPDATE_SCRIPT="$HOME/dashboard-update.sh"
-cat > "$UPDATE_SCRIPT" <<EOF
-#!/usr/bin/env bash
-cd "$INSTALL_DIR" || exit 1
-BEFORE=\$(git rev-parse HEAD)
-git fetch origin "$BRANCH" --quiet
-git reset --hard "origin/$BRANCH" --quiet
-AFTER=\$(git rev-parse HEAD)
-if [ "\$BEFORE" != "\$AFTER" ]; then
-  echo "Updated: \$BEFORE -> \$AFTER. Reloading kiosk..."
+cmd_update() {
+  [ -d "$INSTALL_DIR/.git" ] || { echo "Not installed yet — run '$0 install' first."; exit 1; }
+  cd "$INSTALL_DIR"
+  BEFORE=$(git rev-parse HEAD)
+  git fetch origin "$BRANCH" --quiet
+  git reset --hard "origin/$BRANCH" --quiet
+  AFTER=$(git rev-parse HEAD)
+  if [ "$BEFORE" != "$AFTER" ]; then
+    echo "Updated: $BEFORE -> $AFTER"
+    if pgrep -x chromium-browser >/dev/null 2>&1 || pgrep -x chromium >/dev/null 2>&1; then
+      echo "Kiosk is running — run '$0 stop' then '$0 start' to load the new version."
+    fi
+  else
+    echo "Already up to date ($AFTER)."
+  fi
+}
+
+# ============================================================
+# start — launch X + the kiosk loop, detached from the SSH session
+# so closing the SSH connection doesn't kill the display.
+# ============================================================
+cmd_start() {
+  [ -f "$HOME/.xinitrc" ] || { echo "Not installed yet — run '$0 install' first."; exit 1; }
+  if pgrep -x Xorg >/dev/null 2>&1 || pgrep -x X >/dev/null 2>&1; then
+    echo "Kiosk already appears to be running. Use '$0 stop' first if you want to restart it."
+    exit 1
+  fi
+  echo "==> Starting kiosk (detached) — logging to $KIOSK_LOG"
+  setsid startx > "$KIOSK_LOG" 2>&1 < /dev/null &
+  disown
+  sleep 1
+  echo "==> Started. Use '$0 stop' to end it."
+}
+
+# ============================================================
+# stop — kill the kiosk (Chromium + X). Nothing else touched.
+# ============================================================
+cmd_stop() {
+  echo "==> Stopping kiosk..."
   pkill chromium-browser 2>/dev/null || pkill chromium 2>/dev/null || true
-else
-  echo "Already up to date (\$AFTER)."
-fi
-EOF
-chmod +x "$UPDATE_SCRIPT"
+  pkill -x Xorg 2>/dev/null || pkill -x X 2>/dev/null || true
+  echo "==> Stopped."
+}
 
-echo ""
-echo "==> Setup complete."
-echo "    - Dashboard entry point: $DASHBOARD_PATH"
-echo "    - Reboot to launch automatically: sudo reboot"
-echo "    - Or test right now without rebooting: startx"
-echo "    - After pushing changes to GitHub, SSH in and run:"
-echo "          ~/dashboard-update.sh"
+case "${1:-}" in
+  install) cmd_install ;;
+  update)  cmd_update ;;
+  start)   cmd_start ;;
+  stop)    cmd_stop ;;
+  *)
+    echo "Usage: $0 {install|update|start|stop}"
+    echo "  install  - install packages, clone repo, write ~/.xinitrc (one-time, safe to re-run)"
+    echo "  update   - pull latest dashboard changes from GitHub"
+    echo "  start    - launch the kiosk display (detached; survives SSH disconnect)"
+    echo "  stop     - kill the kiosk display"
+    exit 1
+    ;;
+esac

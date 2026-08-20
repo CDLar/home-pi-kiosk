@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A terminal/CRT-styled dashboard, deployed to a Raspberry Pi as a dedicated kiosk display (`setup-kiosk.sh` provisions the Pi, autologins to X, and runs Chromium in `--kiosk` mode pointed at `index.html` via `file://`). There is no server, no build step, and no bundler — it must keep working exactly as-is: plain `<script src>`/`<link>` tags loaded over `file://`, not ES modules or anything requiring a fetch/import of local files (which `file://` blocks).
+A terminal/CRT-styled dashboard, deployed to a Raspberry Pi as a dedicated kiosk display. There is no server, no build step, and no bundler — it must keep working exactly as-is: plain `<script src>`/`<link>` tags loaded over `file://`, not ES modules or anything requiring a fetch/import of local files (which `file://` blocks).
+
+**Deployment is fully manual, on purpose.** `setup-kiosk.sh` has no automated/background steps — no autologin, nothing starts on boot, no cron/systemd. It's a subcommand script (`install`/`update`/`start`/`stop`) run by hand over SSH whenever the user decides; `start` detaches from the SSH session (via `setsid`) so the kiosk keeps running after disconnect but never launches itself. This was a deliberate change after an earlier autologin-on-boot version left a Pi Zero 2 W's Wi-Fi in a bad state — don't reintroduce autologin, `.bash_profile` auto-`startx` hooks, or any other auto-start-on-boot mechanism without that being an explicit, deliberate request.
 
 ## Hardware target
 
