@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # ============================================================
-# Raspberry Pi Kiosk Dashboard — Manual Setup
+# Raspberry Pi Kiosk Dashboard — Setup
 #
-# Nothing in this script runs automatically. It does not touch
-# autologin, boot behavior, cron, or systemd — the kiosk display
-# only ever starts when YOU run `./setup-kiosk.sh start` over SSH,
-# and only updates when YOU run `./setup-kiosk.sh update`.
+# `install` enables autologin + boot-time kiosk launch, so the display
+# self-recovers after a reboot or power loss without you having to SSH
+# in. Everything else — installing/reinstalling, pulling dashboard
+# updates, and manually starting/stopping the display between reboots
+# — only happens when YOU run the corresponding command over SSH. No
+# cron, no auto-update, no background polling.
 #
 # Usage (SSH into the Pi, then):
 #   chmod +x setup-kiosk.sh
-#   ./setup-kiosk.sh install   # one-time: installs packages, clones repo, writes ~/.xinitrc
+#   ./setup-kiosk.sh install   # one-time: packages, repo clone, ~/.xinitrc, autologin+boot launch
 #   ./setup-kiosk.sh update    # pulls latest dashboard changes from GitHub
-#   ./setup-kiosk.sh start     # launches X + Chromium kiosk (detached, survives SSH disconnect)
+#   ./setup-kiosk.sh start     # (re)launches X + Chromium kiosk without rebooting
 #   ./setup-kiosk.sh stop      # kills the kiosk (X + Chromium)
 #
 # EDIT THESE FIRST:
@@ -26,14 +28,25 @@ DASHBOARD_PATH="$INSTALL_DIR/$DASHBOARD_FILE"
 KIOSK_LOG="$HOME/kiosk.log"
 
 # ============================================================
-# install — packages, repo clone, ~/.xinitrc. Safe to re-run.
-# Does NOT touch autologin/boot_behaviour and does NOT start anything.
+# install — packages, repo clone, ~/.xinitrc, autologin + boot-time
+# kiosk launch. Safe to re-run.
 # ============================================================
 cmd_install() {
   echo "==> Installing packages..."
   sudo apt update
   sudo apt install -y --no-install-recommends \
-    xserver-xorg xinit openbox chromium-browser unclutter git
+    xserver-xorg xinit xserver-xorg-legacy openbox chromium-browser unclutter git
+
+  # systemd-logind only grants VT (/dev/tty0) access to a session logged
+  # into a real console (seat0) — autologin below covers boot, but this
+  # also lets `start`/`stop` work from a plain SSH session (e.g. right
+  # after install, or between reboots) without hitting "Cannot open
+  # /dev/tty0 (Permission denied)".
+  echo "==> Allowing X to start from an SSH session too, not just the console..."
+  sudo tee /etc/X11/Xwrapper.config > /dev/null <<'WRAPPEREOF'
+allowed_users=anybody
+needs_root_rights=yes
+WRAPPEREOF
 
   echo "==> Fetching dashboard repo..."
   if [ -d "$INSTALL_DIR/.git" ]; then
@@ -65,9 +78,17 @@ while true; do
 done
 EOF
 
+  echo "==> Enabling console autologin + boot-time kiosk launch..."
+  sudo raspi-config nonint do_boot_behaviour B2
+
+  if ! grep -qxF 'if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then startx; fi' "$HOME/.bash_profile" 2>/dev/null; then
+    echo 'if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then startx; fi' >> "$HOME/.bash_profile"
+  fi
+
   echo ""
-  echo "==> Install complete. Nothing auto-starts."
-  echo "    Run '$0 start' whenever you want the kiosk on screen."
+  echo "==> Install complete."
+  echo "    - Reboot to launch the kiosk automatically from now on: sudo reboot"
+  echo "    - Or test right now without rebooting: $0 start"
 }
 
 # ============================================================
@@ -109,7 +130,9 @@ cmd_start() {
 }
 
 # ============================================================
-# stop — kill the kiosk (Chromium + X). Nothing else touched.
+# stop — kill the kiosk (Chromium + X). Doesn't come back on its own
+# until you run `start` again or reboot — this is a deliberate manual
+# override, not a toggle the boot-time launch will undo.
 # ============================================================
 cmd_stop() {
   echo "==> Stopping kiosk..."
@@ -125,10 +148,10 @@ case "${1:-}" in
   stop)    cmd_stop ;;
   *)
     echo "Usage: $0 {install|update|start|stop}"
-    echo "  install  - install packages, clone repo, write ~/.xinitrc (one-time, safe to re-run)"
+    echo "  install  - install packages, clone repo, write ~/.xinitrc, enable autologin + boot launch (one-time, safe to re-run)"
     echo "  update   - pull latest dashboard changes from GitHub"
-    echo "  start    - launch the kiosk display (detached; survives SSH disconnect)"
-    echo "  stop     - kill the kiosk display"
+    echo "  start    - launch the kiosk display now, without rebooting"
+    echo "  stop     - kill the kiosk display (stays off until 'start' or a reboot)"
     exit 1
     ;;
 esac

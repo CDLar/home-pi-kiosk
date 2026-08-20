@@ -15,7 +15,7 @@ js/config.js            location, timezone, refresh rate, transit stops
 js/widget-engine.js      card rendering, fetch/refresh loop, error states
 js/widgets/                one file per widget (weather, weather-hourly, calendar, transit-list)
 js/bootstrap.js              mounts all registered widgets once loaded
-setup-kiosk.sh          manual Pi provisioning/start/stop/update script (install|update|start|stop)
+setup-kiosk.sh          Pi provisioning script (install|update|start|stop) — install enables autologin/boot launch, the rest are manual
 ```
 
 There's no header/clock — the display is 1024×600 (see [CLAUDE.md](CLAUDE.md) for the hardware target) and every pixel of vertical space is needed for the widgets themselves.
@@ -58,17 +58,16 @@ Then add `<script src="js/widgets/my-widget.js"></script>` to [index.html](index
 
 ## Pre-setup (starting from a freshly flashed Pi)
 
-Do this once, before [setup-kiosk.sh](setup-kiosk.sh), on a fresh Raspberry Pi OS **Lite** (32-bit or 64-bit both work; Lite specifically — no desktop environment needed) flash. All of it is manual, over SSH — there is no unattended step anywhere in this setup, deliberately, since an earlier version's automated boot/autologin config left a Pi Zero 2 W's Wi-Fi in a bad state.
+Do this once, before [setup-kiosk.sh](setup-kiosk.sh), on a fresh Raspberry Pi OS **Lite** (32-bit or 64-bit both work; Lite specifically — no desktop environment needed) flash.
 
 1. **Flash + first boot.** Use Raspberry Pi Imager's advanced options (gear icon) to set hostname, enable SSH, and pre-configure Wi-Fi credentials before writing the card — avoids ever needing a monitor/keyboard on the Pi itself. Boot it, then SSH in.
 2. **Update the OS** (`sudo apt update && sudo apt full-upgrade -y`) and reboot before installing anything else, so the kiosk stack installs against current packages.
 3. **Install git** (`sudo apt install -y git`) — Raspberry Pi OS Lite doesn't ship it by default, and you need it to `git clone` this repo in the first place, before `setup-kiosk.sh install` gets a chance to install it as part of the kiosk stack.
-4. **Confirm boot target is CLI, not desktop:** `sudo raspi-config` → *System Options* → *Boot / Auto Login* → **Console** (not "Console Autologin" — this setup intentionally does not autologin; see [setup-kiosk.sh](setup-kiosk.sh)). Raspberry Pi OS Lite defaults to this already, but worth confirming after an upgrade.
-5. **Free up RAM for Chromium** — the Zero 2 W only has 512MB total, and Chromium is the single biggest consumer on this device:
+4. **Free up RAM for Chromium** — the Zero 2 W only has 512MB total, and Chromium is the single biggest consumer on this device:
    - Disable services you don't need for a display-only kiosk: `sudo systemctl disable bluetooth avahi-daemon triggerhappy` (re-enable individually if you actually use one).
    - Set the GPU memory split low since there's no 3D/video workload here, just page rendering: `sudo raspi-config` → *Performance Options* → *GPU Memory* → `16`.
    - Leave swap at the Lite default (or disable it with `sudo dphys-swapfile swapoff` — swapping to SD card is slow enough that an OOM-restart of Chromium is often preferable).
-6. **Chromium launch flags** — already baked into the `~/.xinitrc` that `setup-kiosk.sh install` writes, listed here so it's clear what's happening and why, in case you need to tune further for your specific Pi:
+5. **Chromium launch flags** — already baked into the `~/.xinitrc` that `setup-kiosk.sh install` writes, listed here so it's clear what's happening and why, in case you need to tune further for your specific Pi:
    - `--disk-cache-dir=/dev/null` — no disk cache; avoids wearing the SD card and avoids cache eating RAM/tmpfs.
    - `--disable-dev-shm-usage` / `--disable-software-rasterizer` — reduces `/dev/shm` and software-rendering memory pressure on a GPU-constrained board.
    - `--disable-sync --disable-default-apps --disable-component-update --disable-notifications --no-first-run` — strips background network/UI work unrelated to just rendering the dashboard.
@@ -78,7 +77,7 @@ With that done, move on to [Deploying to a Raspberry Pi](#deploying-to-a-raspber
 
 ## Deploying to a Raspberry Pi
 
-Everything here is manual and only runs when you say so — `setup-kiosk.sh` has no automated/background steps, no autologin, and nothing starts on boot. You decide when (and how often) to install, update, start, or stop the kiosk.
+`install` enables autologin + a boot-time kiosk launch, so the display comes back on its own after a reboot or power loss — no SSH required at that point. Everything else (installing/reinstalling, pulling dashboard updates, manually starting/stopping between reboots) only happens when you run the corresponding `setup-kiosk.sh` command yourself; nothing auto-updates and `stop` stays stopped until you `start` it again or reboot.
 
 1. Clone this repo onto the Pi (you just need `setup-kiosk.sh` from it — `install` below clones the dashboard itself separately into `~/dashboard`):
    ```
@@ -86,16 +85,20 @@ Everything here is manual and only runs when you say so — `setup-kiosk.sh` has
    cd home-pi-kiosk
    ```
 2. Edit the `REPO_URL` / `BRANCH` variables at the top of `setup-kiosk.sh` if needed.
-3. One-time install (packages + clone repo + write `~/.xinitrc`; safe to re-run later):
+3. One-time install (packages + clone repo + write `~/.xinitrc` + enable autologin/boot launch; safe to re-run later):
    ```
    chmod +x setup-kiosk.sh
    ./setup-kiosk.sh install
    ```
-4. Start the kiosk display whenever you want it on screen — this detaches from the SSH session, so it keeps running after you disconnect:
+4. Reboot to have the kiosk launch automatically from now on:
+   ```
+   sudo reboot
+   ```
+   Or test it immediately without rebooting:
    ```
    ./setup-kiosk.sh start
    ```
-5. Stop it any time:
+5. Stop it any time (it will not restart on its own — only `start` or a reboot brings it back):
    ```
    ./setup-kiosk.sh stop
    ```
