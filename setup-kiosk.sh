@@ -54,7 +54,7 @@ while true; do
   chromium-browser --kiosk --incognito --noerrdialogs --disable-infobars \\
     --disable-translate --disable-features=TranslateUI \\
     --disable-sync --disable-default-apps --disable-component-update \\
-    --disable-software-rasterizer --disable-dev-shm-usage \\
+    --disable-dev-shm-usage \\
     --disk-cache-dir=/dev/null --disable-notifications \\
     --no-first-run --password-store=basic \\
     --js-flags="--max-old-space-size=128" \\
