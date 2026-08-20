@@ -2,19 +2,16 @@
 # ============================================================
 # Raspberry Pi Kiosk Dashboard — Setup
 #
-# `install` enables autologin + boot-time kiosk launch, so the display
-# self-recovers after a reboot or power loss without you having to SSH
-# in. Everything else — installing/reinstalling, pulling dashboard
-# updates, and manually starting/stopping the display between reboots
-# — only happens when YOU run the corresponding command over SSH. No
-# cron, no auto-update, no background polling.
+# The kiosk display is brought up solely via autologin + a boot-time
+# `startx` — `install` configures that once, and after that a reboot
+# (power loss, `sudo reboot`, etc.) is what starts/restarts the kiosk.
+# There is no SSH-triggered start/stop and no cron/auto-update — pulling
+# dashboard changes only happens when YOU run `update` by hand.
 #
 # Usage (SSH into the Pi, then):
 #   chmod +x setup-kiosk.sh
 #   ./setup-kiosk.sh install   # one-time: packages, repo clone, ~/.xinitrc, autologin+boot launch
 #   ./setup-kiosk.sh update    # pulls latest dashboard changes from GitHub
-#   ./setup-kiosk.sh start     # (re)launches X + Chromium kiosk without rebooting
-#   ./setup-kiosk.sh stop      # kills the kiosk (X + Chromium)
 #
 # EDIT THESE FIRST:
 # ============================================================
@@ -25,7 +22,6 @@ BRANCH="main"
 DASHBOARD_FILE="index.html"         # entry point INSIDE the repo
 INSTALL_DIR="$HOME/dashboard"
 DASHBOARD_PATH="$INSTALL_DIR/$DASHBOARD_FILE"
-KIOSK_LOG="$HOME/kiosk.log"
 
 # ============================================================
 # install — packages, repo clone, ~/.xinitrc, autologin + boot-time
@@ -35,18 +31,7 @@ cmd_install() {
   echo "==> Installing packages..."
   sudo apt update
   sudo apt install -y --no-install-recommends \
-    xserver-xorg xinit xserver-xorg-legacy openbox chromium-browser unclutter git
-
-  # systemd-logind only grants VT (/dev/tty0) access to a session logged
-  # into a real console (seat0) — autologin below covers boot, but this
-  # also lets `start`/`stop` work from a plain SSH session (e.g. right
-  # after install, or between reboots) without hitting "Cannot open
-  # /dev/tty0 (Permission denied)".
-  echo "==> Allowing X to start from an SSH session too, not just the console..."
-  sudo tee /etc/X11/Xwrapper.config > /dev/null <<'WRAPPEREOF'
-allowed_users=anybody
-needs_root_rights=yes
-WRAPPEREOF
+    xserver-xorg xinit openbox chromium-browser unclutter git
 
   echo "==> Fetching dashboard repo..."
   if [ -d "$INSTALL_DIR/.git" ]; then
@@ -87,13 +72,13 @@ EOF
 
   echo ""
   echo "==> Install complete."
-  echo "    - Reboot to launch the kiosk automatically from now on: sudo reboot"
-  echo "    - Or test right now without rebooting: $0 start"
+  echo "    Reboot to launch the kiosk: sudo reboot"
 }
 
 # ============================================================
 # update — pull latest dashboard changes. Run by hand, as often
-# (or rarely) as you like.
+# (or rarely) as you like. Kills Chromium (not X) so the ~/.xinitrc
+# loop reopens it fresh with the new files if the kiosk is running.
 # ============================================================
 cmd_update() {
   [ -d "$INSTALL_DIR/.git" ] || { echo "Not installed yet — run '$0 install' first."; exit 1; }
@@ -103,55 +88,20 @@ cmd_update() {
   git reset --hard "origin/$BRANCH" --quiet
   AFTER=$(git rev-parse HEAD)
   if [ "$BEFORE" != "$AFTER" ]; then
-    echo "Updated: $BEFORE -> $AFTER"
-    if pgrep -x chromium-browser >/dev/null 2>&1 || pgrep -x chromium >/dev/null 2>&1; then
-      echo "Kiosk is running — run '$0 stop' then '$0 start' to load the new version."
-    fi
+    echo "Updated: $BEFORE -> $AFTER. Reloading kiosk..."
+    pkill chromium-browser 2>/dev/null || pkill chromium 2>/dev/null || true
   else
     echo "Already up to date ($AFTER)."
   fi
 }
 
-# ============================================================
-# start — launch X + the kiosk loop, detached from the SSH session
-# so closing the SSH connection doesn't kill the display.
-# ============================================================
-cmd_start() {
-  [ -f "$HOME/.xinitrc" ] || { echo "Not installed yet — run '$0 install' first."; exit 1; }
-  if pgrep -x Xorg >/dev/null 2>&1 || pgrep -x X >/dev/null 2>&1; then
-    echo "Kiosk already appears to be running. Use '$0 stop' first if you want to restart it."
-    exit 1
-  fi
-  echo "==> Starting kiosk (detached) — logging to $KIOSK_LOG"
-  setsid startx > "$KIOSK_LOG" 2>&1 < /dev/null &
-  disown
-  sleep 1
-  echo "==> Started. Use '$0 stop' to end it."
-}
-
-# ============================================================
-# stop — kill the kiosk (Chromium + X). Doesn't come back on its own
-# until you run `start` again or reboot — this is a deliberate manual
-# override, not a toggle the boot-time launch will undo.
-# ============================================================
-cmd_stop() {
-  echo "==> Stopping kiosk..."
-  pkill chromium-browser 2>/dev/null || pkill chromium 2>/dev/null || true
-  pkill -x Xorg 2>/dev/null || pkill -x X 2>/dev/null || true
-  echo "==> Stopped."
-}
-
 case "${1:-}" in
   install) cmd_install ;;
   update)  cmd_update ;;
-  start)   cmd_start ;;
-  stop)    cmd_stop ;;
   *)
-    echo "Usage: $0 {install|update|start|stop}"
+    echo "Usage: $0 {install|update}"
     echo "  install  - install packages, clone repo, write ~/.xinitrc, enable autologin + boot launch (one-time, safe to re-run)"
-    echo "  update   - pull latest dashboard changes from GitHub"
-    echo "  start    - launch the kiosk display now, without rebooting"
-    echo "  stop     - kill the kiosk display (stays off until 'start' or a reboot)"
+    echo "  update   - pull latest dashboard changes from GitHub and reload the kiosk if it's running"
     exit 1
     ;;
 esac

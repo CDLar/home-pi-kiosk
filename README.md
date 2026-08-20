@@ -15,7 +15,7 @@ js/config.js            location, timezone, refresh rate, transit stops
 js/widget-engine.js      card rendering, fetch/refresh loop, error states
 js/widgets/                one file per widget (weather, weather-hourly, calendar, transit-list)
 js/bootstrap.js              mounts all registered widgets once loaded
-setup-kiosk.sh          Pi provisioning script (install|update|start|stop) — install enables autologin/boot launch, the rest are manual
+setup-kiosk.sh          Pi provisioning script (install|update) — install enables autologin/boot launch; reboot to (re)start the kiosk
 ```
 
 There's no header/clock — the display is 1024×600 (see [CLAUDE.md](CLAUDE.md) for the hardware target) and every pixel of vertical space is needed for the widgets themselves.
@@ -77,7 +77,7 @@ With that done, move on to [Deploying to a Raspberry Pi](#deploying-to-a-raspber
 
 ## Deploying to a Raspberry Pi
 
-`install` enables autologin + a boot-time kiosk launch, so the display comes back on its own after a reboot or power loss — no SSH required at that point. Everything else (installing/reinstalling, pulling dashboard updates, manually starting/stopping between reboots) only happens when you run the corresponding `setup-kiosk.sh` command yourself; nothing auto-updates and `stop` stays stopped until you `start` it again or reboot.
+`install` enables autologin + a boot-time kiosk launch. From then on, the kiosk starts and restarts solely via reboot (power loss, `sudo reboot`, etc.) — there's no SSH-triggered start/stop. Pulling dashboard updates is still manual: nothing auto-updates, you run `update` yourself whenever you want the latest version.
 
 1. Clone this repo onto the Pi (you just need `setup-kiosk.sh` from it — `install` below clones the dashboard itself separately into `~/dashboard`):
    ```
@@ -90,17 +90,9 @@ With that done, move on to [Deploying to a Raspberry Pi](#deploying-to-a-raspber
    chmod +x setup-kiosk.sh
    ./setup-kiosk.sh install
    ```
-4. Reboot to have the kiosk launch automatically from now on:
+4. Reboot to launch the kiosk:
    ```
    sudo reboot
-   ```
-   Or test it immediately without rebooting:
-   ```
-   ./setup-kiosk.sh start
-   ```
-5. Stop it any time (it will not restart on its own — only `start` or a reboot brings it back):
-   ```
-   ./setup-kiosk.sh stop
    ```
 
 ### Pushing updates
@@ -109,4 +101,4 @@ After pushing changes to GitHub, SSH into the Pi and run:
 ```
 ./setup-kiosk.sh update
 ```
-This pulls the latest commit. If the kiosk is currently running, it'll tell you to `stop` then `start` again to pick up the new version — nothing reloads automatically.
+This pulls the latest commit and, if the kiosk is currently running, kills Chromium so the `~/.xinitrc` loop reopens it fresh with the new version — no reboot needed for a dashboard update (only `install` changes, like new packages, need a reboot).
