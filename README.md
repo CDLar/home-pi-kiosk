@@ -58,21 +58,21 @@ Then add `<script src="js/widgets/my-widget.js"></script>` to [index.html](index
 
 ## Pre-setup (starting from a freshly flashed Pi)
 
-Do this once, before [setup-kiosk.sh](setup-kiosk.sh), on a fresh Raspberry Pi OS **Lite** (32-bit or 64-bit both work; Lite specifically — no desktop environment needed) flash.
+Do this once, before [setup-kiosk.sh](setup-kiosk.sh), on a fresh Raspberry Pi OS **Lite** flash.
 
-1. **Flash + first boot.** Use Raspberry Pi Imager's advanced options (gear icon) to set hostname, enable SSH, and pre-configure Wi-Fi credentials before writing the card — avoids ever needing a monitor/keyboard on the Pi itself. Boot it, then SSH in.
-2. **Update the OS** (`sudo apt update && sudo apt full-upgrade -y`) and reboot before installing anything else, so the kiosk stack installs against current packages.
-3. **Install git** (`sudo apt install -y git`) — Raspberry Pi OS Lite doesn't ship it by default, and you need it to `git clone` this repo in the first place, before `setup-kiosk.sh install` gets a chance to install it as part of the kiosk stack.
-4. **Free up RAM for Chromium** — the Zero 2 W only has 512MB total, and Chromium is the single biggest consumer on this device. Be conservative here: a few of these are easy to over-tighten and end up hurting the kiosk instead of helping it, since it's the display *and* its only remote-access path (SSH) sharing that same 512MB.
-   - Disable `triggerhappy` (hotkey daemon) and `bluetooth` if you don't need them: `sudo systemctl disable triggerhappy bluetooth`. **Leave `avahi-daemon` enabled** — it's what lets you `ssh curtpi@<hostname>.local` without knowing the Pi's IP, and disabling it to save a few MB isn't worth losing that when something's already gone wrong with the display and you need to get back in.
-   - **Leave the GPU memory split at its default** — don't lower it via `raspi-config`. This board uses the modern KMS driver (`dtoverlay=vc4-kms-v3d` in `config.txt`, already the default), where GPU memory is managed dynamically by the driver, not carved out of a static split the old "headless Pi" advice assumes; lowering it can starve Chromium's compositor instead of freeing RAM for it.
-   - **Leave swap at the Lite default — don't disable it.** With Chromium alone regularly using 150–200MB+ on this device, swap is a safety buffer against an OOM kill mid-render, not just wasted SD wear; losing it trades a slow-but-recoverable slowdown for a hard crash.
-5. **Chromium launch flags** — already baked into the `~/.xinitrc` that `setup-kiosk.sh install` writes, listed here so it's clear what's happening and why, in case you need to tune further for your specific Pi. Note `install` detects the actual Chromium binary at install time (`command -v chromium-browser || command -v chromium`) rather than hardcoding a name — current Raspberry Pi OS (trixie-based) only ships `chromium`, not `chromium-browser`, and that's changed across OS releases before:
-   - `--disk-cache-dir=/dev/null` — no disk cache; avoids wearing the SD card and avoids cache eating RAM/tmpfs.
-   - `--disable-dev-shm-usage` — avoids `/dev/shm` memory pressure on a RAM-constrained board.
-   - `--disable-sync --disable-default-apps --disable-component-update --disable-notifications --no-first-run` — strips background network/UI work unrelated to just rendering the dashboard.
-   - `--js-flags="--max-old-space-size=128"` — caps the V8 heap so a leaking/growing tab gets recycled instead of slowly starving the whole Pi of RAM.
-   - Deliberately **not** using `--disable-software-rasterizer`: it removes Chromium's software-rendering fallback, so if hardware-accelerated rendering ever hiccups on this board's KMS driver, the result is a blank screen with no fallback instead of a slower-but-working one. Given this setup has already hit a blank-screen issue once, that tradeoff isn't worth the RAM savings.
+1. Flash with Raspberry Pi Imager's advanced options (hostname, SSH, Wi-Fi) so you can SSH in without a monitor/keyboard.
+2. `sudo apt update && sudo apt full-upgrade -y`, then reboot.
+3. `sudo apt install -y git`
+4. Optional: `sudo systemctl disable triggerhappy bluetooth`. Leave `avahi-daemon`, swap, and the GPU memory split at their defaults.
+5. Chromium's launch flags (below) are already baked into the `~/.xinitrc` that `setup-kiosk.sh install` writes — nothing to do here, just for reference:
+   - `--disk-cache-dir=/dev/null` — no disk cache
+   - `--disable-dev-shm-usage` — avoids `/dev/shm` memory pressure
+   - `--disable-sync --disable-default-apps --disable-component-update --disable-notifications --no-first-run` — strips background work
+   - `--js-flags="--max-old-space-size=128"` — caps the V8 heap
+   - `--disable-features=TranslateUI,site-per-process` — disables Site Isolation (not needed for one trusted page)
+   - `--renderer-process-limit=1` — caps Chromium to one renderer process
+   - `--no-memcheck` — skips the launcher script's low-RAM warning dialog (unclickable — this kiosk has no mouse/keyboard)
+   - `--test-type` — suppresses other "unsupported configuration" warnings
 
 With that done, move on to [Deploying to a Raspberry Pi](#deploying-to-a-raspberry-pi) below.
 

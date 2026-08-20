@@ -62,10 +62,10 @@ unclutter -idle 0.5 -root &
 openbox-session &
 
 while true; do
-  $CHROMIUM_BIN --kiosk --incognito --noerrdialogs --disable-infobars \\
-    --disable-translate --disable-features=TranslateUI \\
+  $CHROMIUM_BIN --kiosk --incognito --noerrdialogs --disable-infobars --test-type --no-memcheck \\
+    --disable-translate --disable-features=TranslateUI,site-per-process \\
     --disable-sync --disable-default-apps --disable-component-update \\
-    --disable-dev-shm-usage \\
+    --disable-dev-shm-usage --renderer-process-limit=1 \\
     --disk-cache-dir=/dev/null --disable-notifications \\
     --no-first-run --password-store=basic \\
     --js-flags="--max-old-space-size=128" \\
