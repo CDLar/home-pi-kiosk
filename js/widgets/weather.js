@@ -52,7 +52,7 @@
             </div>
           </div>
           <div class="wx-col-right">
-            <div class="wx-icon-big">${iconFor(cur.weather_code, cur.is_day === 1)}</div>
+            <div class="wx-icon-big">${iconFor(cur.weather_code, cur.is_day === 1, true)}</div>
           </div>
         </div>
       `;

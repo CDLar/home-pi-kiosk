@@ -7,9 +7,16 @@
   // weather-hourly.js (small, per-pill icon).
   const CLOUD_PATH = "M7 18h9.5a3.75 3.75 0 0 0 .5-7.46 5.25 5.25 0 0 0-10.14-1.62A4.25 4.25 0 0 0 7 18z";
 
-  function sunSVG(){
+  // withFace only used for the large current-conditions icon (weather.js)
+  // — the small per-pill icons (weather-hourly.js) stay plain
+  function sunSVG(withFace){
+    const face = withFace ? `
+      <circle cx="10.4" cy="11.2" r="0.5" fill="var(--bg)" stroke="none"/>
+      <circle cx="13.6" cy="11.2" r="0.5" fill="var(--bg)" stroke="none"/>
+      <path d="M10.3 13 Q12 14.3 13.7 13" fill="none" stroke="var(--bg)" stroke-width="0.6"/>` : "";
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
       <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"/>
+      ${face}
       <line x1="12" y1="2" x2="12" y2="4.6"/><line x1="12" y1="19.4" x2="12" y2="22"/>
       <line x1="2" y1="12" x2="4.6" y2="12"/><line x1="19.4" y1="12" x2="22" y2="12"/>
       <line x1="4.9" y1="4.9" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.1" y2="19.1"/>
@@ -22,10 +29,15 @@
       <path d="M9 18h9a3.5 3.5 0 0 0 .4-6.98A4.9 4.9 0 0 0 9.3 9.6 4 4 0 0 0 9 18z" fill="currentColor" opacity="0.9"/>
     </svg>`;
   }
-  function moonSVG(){
+  function moonSVG(withFace){
     // classic crescent — a circle occluded by an offset circle
+    const face = withFace ? `
+      <circle cx="6.5" cy="12" r="0.55" fill="var(--bg)" stroke="none"/>
+      <circle cx="9.3" cy="12" r="0.55" fill="var(--bg)" stroke="none"/>
+      <path d="M6.5 14.5 Q8.4 15.8 10.3 14.5" fill="none" stroke="var(--bg)" stroke-width="0.65" stroke-linecap="round"/>` : "";
     return `<svg viewBox="0 0 24 24" fill="none">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/>
+      ${face}
     </svg>`;
   }
   function cloudSVG(extra){
@@ -54,9 +66,9 @@
   // WMO codes alone don't distinguish day/night — code 0 is just "clear
   // sky," at 2am or 2pm — so clear/partly-clear icons also need a
   // separate is_day flag, or they'd show a sun at midnight
-  function iconFor(code, isDay){
-    if (code === 0) return isDay ? sunSVG() : moonSVG();
-    if (code === 1 || code === 2) return isDay ? partlyCloudySVG() : moonSVG();
+  function iconFor(code, isDay, withFace){
+    if (code === 0) return isDay ? sunSVG(withFace) : moonSVG(withFace);
+    if (code === 1 || code === 2) return isDay ? partlyCloudySVG() : moonSVG(withFace);
     if (code === 45 || code === 48) return fogSVG();
     if ([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)) return rainSVG();
     if ([71,73,75,77,85,86].includes(code)) return snowSVG();
