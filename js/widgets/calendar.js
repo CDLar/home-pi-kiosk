@@ -34,14 +34,8 @@
       const p = formatParts(data.now);
       el.innerHTML = `
         <div class="cal-panel">
-          <div class="cal-spine">${p.dow}</div>
-          <div class="cal-date-main">
-            <div class="cal-month">${p.month}</div>
-            <div class="cal-stampblock"><span class="cal-daynum">${p.day}</span></div>
-          </div>
-          <div class="cal-time-block">
-            <div class="cal-time">${p.time}</div>
-          </div>
+          <div class="cal-date-line">${p.dow}, ${p.month} ${p.day}</div>
+          <div class="cal-time">${p.time}</div>
         </div>
       `;
     }

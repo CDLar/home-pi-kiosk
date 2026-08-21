@@ -268,8 +268,8 @@ body {
 }
 
 .wx-pill-icon {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   color: var(--amber-bright);
 }
 
@@ -297,62 +297,31 @@ body {
 }
 
 /* ---------- calendar/date panel ---------- */
-/* spine (vertical weekday) + stamp block (day number) on the left,
-   time split off to its own space on the right */
+/* the whole block IS the stamp now — filled amber background, dark
+   text — instead of just the day number, for the strongest possible
+   contrast against the flat weather block below it */
 .cal-panel {
   display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.cal-spine {
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  font-size: 13px;
-  letter-spacing: 4px;
-  color: var(--amber-dim);
-  border-right: 1px solid var(--border);
-  padding-right: 14px;
-  text-transform: uppercase;
-}
-
-.cal-date-main {
-  display: flex;
   flex-direction: column;
-}
-
-.cal-month {
-  font-size: 13px;
-  letter-spacing: 3px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-}
-
-.cal-stampblock {
-  display: inline-block;
-  width: fit-content;
-  margin-top: 4px;
+  gap: 6px;
   background: var(--amber-bright);
-  border-radius: 4px;
-  padding: 2px 14px;
+  border-radius: 10px;
+  padding: 14px 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.cal-daynum {
-  font-size: 52px;
-  font-weight: 700;
+.cal-date-line {
+  font-size: 15px;
+  letter-spacing: 2px;
   color: var(--bg);
-  line-height: 1;
-}
-
-.cal-time-block {
-  margin-left: auto;
-  text-align: right;
+  text-transform: uppercase;
 }
 
 .cal-time {
-  font-size: 48px;
+  font-size: 62px;
   font-weight: 800;
-  color: var(--amber-bright);
+  color: var(--bg);
   line-height: 1;
   letter-spacing: 1px;
 }
@@ -400,7 +369,7 @@ body {
 }
 
 .tl-route {
-  font-size: 23px;
+  font-size: 30px;
   font-weight: 800;
   color: var(--amber-bright);
   line-height: 1;
@@ -412,7 +381,7 @@ body {
 }
 
 .tl-dir {
-  font-size: 11px;
+  font-size: 15px;
   letter-spacing: 1.5px;
   color: var(--amber-dim);
   text-transform: uppercase;
@@ -421,14 +390,14 @@ body {
 
 .tl-dest {
   line-height: 1;
-  margin-top: 4px;
-  font-size: 10px;
+  margin-top: 5px;
+  font-size: 13px;
   color: var(--text-dim);
   letter-spacing: 0.2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 180px;
+  max-width: 220px;
 }
 
 /* the ETAs are the whole point of this board — the number itself scales

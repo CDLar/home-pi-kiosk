@@ -16,6 +16,7 @@ window.CONFIG = {
     { agency: "ttc", route: "503", stopId: "2774", label: "KINGSTON RD AT DIXON AVE", direction: "E" },
     { agency: "ttc", route: "501", stopId: "6806", label: "QUEEN ST E AT KINGSTON RD", direction: "W" },
     { agency: "ttc", route: "501", stopId: "11845", label: "QUEEN ST E AT KINGSTON RD", direction: "E" },
-    { agency: "ttc", route: "22", stopId: "11181", label: "EASTERN AVE AT QUEEN ST E", direction: "N" }
+    { agency: "ttc", route: "22", stopId: "11181", label: "EASTERN AVE AT QUEEN ST E", direction: "N" },
+    { agency: "ttc", route: "22", stopId: "14644", label: "COXWELL STATION", direction: "S" }
   ]
 };
