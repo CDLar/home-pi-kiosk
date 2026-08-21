@@ -8,6 +8,7 @@ window.CONFIG = {
   longitude: -79.3832,
   timezone: "America/Toronto",
   refreshMs: 45000,      // default refresh for widgets that don't override
+  transitRefreshMs: 15000, // tighter refresh for transit — ETAs matter down to the wire
   clockTickMs: 1000,
 
   transit: [

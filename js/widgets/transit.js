@@ -83,7 +83,7 @@
   window.KIOSK_WIDGETS.push({
     id: "transit-list",
     bare: true,
-    refreshMs: CONFIG.refreshMs,
+    refreshMs: CONFIG.transitRefreshMs,
 
     async fetch() {
       // one stop failing shouldn't take down the whole board — resolve

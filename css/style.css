@@ -13,6 +13,9 @@
   --amber: #ffb000;
   --amber-bright: #ffd166;
   --amber-dim: #9c6d00;
+  --blue: #4da6ff;
+  --blue-pale: #7d93a8;
+  --blue-vivid: #1f8fff;
   --text: #e8dcc4;
   --text-dim: #8a7c60;
   --red: #ff4433;
@@ -164,12 +167,28 @@ body {
 }
 
 /* ---------- weather widget internals ---------- */
-/* stacked (not side-by-side) — this card is now only 1 column wide,
-   sharing that column with the calendar below it */
+/* two columns: temp+details on the left (sized to content), a big
+   condition icon filling whatever width is left on the right — that
+   space used to just sit empty next to the text block */
 .wx-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wx-col-left {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.wx-col-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .wx-temp {
@@ -188,6 +207,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.wx-icon-big {
+  width: 132px;
+  height: 132px;
+  color: var(--amber-bright);
+}
+
+.wx-icon-big svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .wx-cond {
@@ -247,10 +278,22 @@ body {
   height: 100%;
 }
 
+.wx-pill-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
 .wx-pill-temp {
   font-size: 17px;
   font-weight: 700;
   color: var(--amber-bright);
+}
+
+.wx-pill-precip {
+  font-size: 17px;
+  color: color-mix(in srgb, var(--blue-pale), var(--blue-vivid) calc(var(--precip-t, 0) * 100%));
 }
 
 /* ---------- calendar/date panel ---------- */
