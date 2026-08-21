@@ -73,10 +73,25 @@ body {
   overflow: hidden;
 }
 
-.card[data-widget="calendar"] { grid-column: 1; grid-row: 1; }
-.card[data-widget="weather"] { grid-column: 1; grid-row: 2; }
-.card[data-widget="weather-hourly"] { grid-column: 2 / 4; grid-row: 1 / 3; }
-.card[data-widget="transit-list"] { grid-column: 1 / 4; grid-row: 3; }
+.card[data-widget="calendar"] {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.card[data-widget="weather"] {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.card[data-widget="weather-hourly"] {
+  grid-column: 2 / 4;
+  grid-row: 1 / 3;
+}
+
+.card[data-widget="transit-list"] {
+  grid-column: 1 / 4;
+  grid-row: 3;
+}
 
 .card {
   background: var(--bg-panel);
@@ -347,7 +362,7 @@ body {
    to the full height of the entry so they're the biggest thing here. */
 .tl-entry {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 200px 1fr;
   align-items: stretch;
   column-gap: 20px;
   padding: 10px 26px;
@@ -378,6 +393,7 @@ body {
 .tl-dir-stack {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .tl-dir {
@@ -397,7 +413,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 220px;
+  max-width: 100%;
 }
 
 /* the ETAs are the whole point of this board — the number itself scales
